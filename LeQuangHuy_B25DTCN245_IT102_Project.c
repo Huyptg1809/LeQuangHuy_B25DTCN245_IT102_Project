@@ -30,8 +30,11 @@ struct visitRecord {
     char visitDate[15];
     char status[50];
 };
-struct visitRecord records[MAX_RECORDS];
-int recordCount = 0;
+struct visitRecord records[MAX_RECORDS] = {
+    {"1234567890", "15/10/2024", "Theo Doi"},
+    {"1234567890", "22/10/2024", "Tai kham"}
+};
+int recordCount = 2;
 
 
 // Khai báo hàm
@@ -233,8 +236,6 @@ void addPatient() {
             }
         }
     p.visitDays = 0;
-
-    // Lưu vào mảng
     patients[patientCount++] = p;
     printf(">>> Da them benh nhan thanh cong! (Tong so: %d)\n", patientCount);
 }
@@ -299,7 +300,7 @@ void deletePatient() {
 
     // Kiem tra debt
     if (patients[index].debt > 0) {
-        printf("Benh nhan co cong no %.0f VND.\n,Can thanh toan truoc !!!", patients[index].debt);
+        printf("Benh nhan co cong no %.0f VND,Can thanh toan truoc !!!\n", patients[index].debt);
         return;
     }
 
@@ -340,18 +341,14 @@ void listPatientsPaginate() {
 
     int page_size;
     char buffer[100];
-    // --- Nhập số lượng dòng trên 1 trang ---
     while (1) {
         printf("Nhap so phan tu trong 1 trang (>0): ");
         if (fgets(buffer, sizeof(buffer), stdin) != NULL) {
-            // Xóa ký tự xuống dòng
             buffer[strcspn(buffer, "\n")] = 0;
-            // Kiểm tra nhập rỗng
             if (strlen(buffer) == 0) {
                 printf("Ban chua nhap gi ca. Vui long nhap lai.\n");
                 continue;
             }
-            // Kiểm tra xem có phải là số hợp lệ không
             if (sscanf(buffer, "%d", &page_size) == 1 && page_size > 0) {
                 break;
             }
@@ -361,10 +358,7 @@ void listPatientsPaginate() {
 
     int total_page = (patientCount + page_size - 1) / page_size;
     int page_number = 1;
-
-    // --- Vòng lặp hiển thị trang ---
     while (1) {
-        // --- Nhập số trang ---
         while (1) {
             printf("Chon so trang can hien thi 1 -> %d : ", total_page);
             if (fgets(buffer, sizeof(buffer), stdin) != NULL) {
@@ -468,33 +462,20 @@ void findPatient() {
 
 // --- F06: SẮP XẾP DANH SÁCH ---
 // swap
-void swapPatients(struct patient *p1, struct patient *p2) {
-    struct patient temp = *p1;
-    *p1 = *p2;
-    *p2 = temp;
-}
-
-// Hàm sắp xếp
 void bubbleSortPatients(int order) {
-    int i, j;
-    for (i = 0; i < patientCount - 1; i++) {
-        for (j = 0; j < patientCount - 1 - i; j++) {
-            int shouldSwap = 0;
-            
-            // Sắp xếp Tăng dần
-            if (order == 1) {
-                if (patients[j].debt > patients[j+1].debt) {
-                    shouldSwap = 1;
-                }
-            }
-            // Sắp xếp Giảm dần
-            else if (order == 2) {
-                if (patients[j].debt < patients[j+1].debt) {
-                    shouldSwap = 1;
-                }
-            }
-            if (shouldSwap) {
-                swapPatients(&patients[j], &patients[j+1]);
+    for (int i = 0; i < patientCount - 1; i++) {
+        for (int j = 0; j < patientCount - 1 - i; j++) {
+            int needSwap = 0;
+
+            if (order == 1 && patients[j].debt > patients[j+1].debt)
+                needSwap = 1;
+            else if (order == 2 && patients[j].debt < patients[j+1].debt)
+                needSwap = 1;
+
+            if (needSwap) {
+                struct patient temp = patients[j];
+                patients[j] = patients[j+1];
+                patients[j+1] = temp;
             }
         }
     }
@@ -534,6 +515,25 @@ void sortList() {
     listPatients();
 }
 // --- F07: GHI NHẬN KHÁM BỆNH ---
+// Hàm kiểm tra năm nhuận
+int isLeapYear(int year) {
+    return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+}
+
+// Hàm kiểm tra ngày tháng
+int isValidDate(const char *dateStr) {
+    if (strlen(dateStr) != 10) return 0;
+    int day, month, year;
+    if (sscanf(dateStr, "%d/%d/%d", &day, &month, &year) != 3) return 0;
+    if (year < 1500 || year > 2030) return 0;
+    if (month < 1 || month > 12) return 0;
+    int daysInMonth[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    if (month == 2 && isLeapYear(year)) {
+        daysInMonth[2] = 29;
+    }
+    if (day < 1 || day > daysInMonth[month]) return 0;
+    return 1;
+}
 void addVisitRecord() {
     if (recordCount >= MAX_RECORDS) {
         printf("!!! Danh sach lich su kham benh da day, khong the them moi!\n");
@@ -542,38 +542,68 @@ void addVisitRecord() {
 
     char id[15];
     char date[15];
-
+    char statusBuffer[50];
+    int typeChoice;
+    char choiceBuff[10];
     printf("\n--- GHI NHAN KHAM BENH ---\n");
-    
     // 1. Nhập và kiểm tra cardId
     inputString(id, sizeof(id), "Nhap ma ho so benh nhan (cardId): ");
     int patientIndex = findPatientIndex(id);
-
     if (patientIndex == -1) {
         printf("!!! Khong tim thay benh nhan co ma %s.\n", id);
         return;
     }
 
     // 2. Nhập và kiểm tra visitDate
-    inputString(date, sizeof(date), "Nhap ngay kham benh (dd/mm/YYYY): ");
+    while (1) {
+        inputString(date, sizeof(date), "Nhap ngay kham benh (dd/mm/yyyy): ");
+        if (isValidDate(date)) {
+            break;
+        } else {
+            printf("!!! Ngay thang khong hop le. Vui long nhap lai\n");
+        }
+    }
 
-    // 3. Kiểm tra trùng lặp lịch khám
+    // 3. Kiểm tra trùng lặp
     if (isRecordExists(id, date)) {
         printf("!!! Benh nhan %s da duoc ghi nhan lich kham vao ngay %s roi.\n", id, date);
         return;
     }
-    patients[patientIndex].visitDays++;
+
+    // 4. NHẬP TRẠNG THÁI
+    while (1) {
+        printf("Chon trang thai ghi nhan:\n");
+        printf("  1. Tai kham\n");
+        printf("  2. Theo doi\n");
+        printf("  3. Nhap ly do khac\n");
+        printf("Nhap lua chon (1-3): ");
+        
+        if (fgets(choiceBuff, sizeof(choiceBuff), stdin)) {
+            if (sscanf(choiceBuff, "%d", &typeChoice) == 1) {
+                if (typeChoice == 1) {
+                    strcpy(statusBuffer, "Tai kham");
+                    break;
+                } else if (typeChoice == 2) {
+                    strcpy(statusBuffer, "Theo doi");
+                    break;
+                } else if (typeChoice == 3) {
+                    inputString(statusBuffer, sizeof(statusBuffer), "Nhap trang thai/ly do: ");
+                    break;
+                }
+            }
+        }
+        printf("!!! Lua chon khong hop le. Vui long chon 1, 2 hoac 3.\n");
+    }
     
+    patients[patientIndex].visitDays++;
     struct visitRecord newRecord;
     strcpy(newRecord.cardId, id);
     strcpy(newRecord.visitDate, date);
-    strcpy(newRecord.status, "Tai kham/Theo doi");
-
+    strcpy(newRecord.status, statusBuffer);
     records[recordCount++] = newRecord;
-    printf(">>> Ghi nhan lich kham ngay %s cho benh nhan %s thanh cong.\n", date, id);
-    printf("So ngay kham: %d\n", patients[patientIndex].visitDays);
+    printf(">>> THANH CONG: Ghi nhan trang thai '%s' ngay %s cho benh nhan %s.\n", statusBuffer, date, id);
+    printf("Tong so lan kham: %d\n", patients[patientIndex].visitDays);
 }
-
 // --- F08: XEM LỊCH SỬ KHÁM BỆNH---
 void showPatientRecords() {
     char id[15];
