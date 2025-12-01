@@ -519,13 +519,12 @@ void sortList() {
 int isLeapYear(int year) {
     return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
 }
-
 // Hàm kiểm tra ngày tháng
 int isValidDate(const char *dateStr) {
     if (strlen(dateStr) != 10) return 0;
     int day, month, year;
     if (sscanf(dateStr, "%d/%d/%d", &day, &month, &year) != 3) return 0;
-    if (year < 1500 || year > 2030) return 0;
+    if (year < 2024 || year > 2030  ) return 0;
     if (month < 1 || month > 12) return 0;
     int daysInMonth[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
     if (month == 2 && isLeapYear(year)) {
@@ -623,7 +622,7 @@ void showPatientRecords() {
     for (int i = 0; i < recordCount; i++) {
         if (strcmp(records[i].cardId, id) == 0) {
             printf("|%-7d|%-17s|%-33s|\n",
-                   foundCount + 1, // Số thứ tự
+                   foundCount + 1,
                    records[i].visitDate,
                    records[i].status);
             foundCount++;
